@@ -1,0 +1,31 @@
+/* Custom styles */
+.card {
+    transition: transform 0.2s;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.rating-stars {
+    color: #ffc107;
+}
+
+.verified-badge {
+    color: #28a745;
+}
+
+.navbar-brand i {
+    margin-right: 8px;
+}
+
+.alert {
+    animation: fadeIn 0.5s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}

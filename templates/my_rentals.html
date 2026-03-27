@@ -1,0 +1,32 @@
+{% extends "base.html" %} {% block title %}My Rentals{% endblock %} {% block
+content %}
+<h2>My Rentals</h2>
+<div class="row">
+  {% for rental in rentals %}
+  <div class="col-md-6 mb-4">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">{{ rental.item.title }}</h5>
+        <p class="card-text">
+          Rented from {{ rental.start_date.strftime('%Y-%m-%d') }} to {{
+          rental.end_date.strftime('%Y-%m-%d') }}
+        </p>
+        <p>Deposit paid: ${{ "%.2f"|format(rental.deposit_paid) }}</p>
+        <span class="badge bg-info">{{ rental.status }}</span>
+        {% if rental.status == 'active' %}
+        <form
+          method="POST"
+          action="{{ url_for('return_item', rental_id=rental.id) }}"
+          class="mt-2"
+        >
+          <button type="submit" class="btn btn-success btn-sm">
+            Mark as Returned
+          </button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
