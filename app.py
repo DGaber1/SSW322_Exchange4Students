@@ -90,11 +90,19 @@ def browse():
         query = query.filter(Item.price_per_day <= max_price)
     
     items = query.order_by(Item.created_at.desc()).all()
-    categories = ['electronics', 'books', 'furniture', 'clothing', 'sports', 'other']
-    
+    categories = [
+        ('electronics', 'Electronics'),
+        ('books', 'Books'),
+        ('furniture', 'Furniture'),
+        ('clothing', 'Clothing'),
+        ('sports', 'Sports'),
+        ('other', 'Other'),
+    ]
+
     return render_template('browse.html', items=items, categories=categories)
 
 @app.route('/item/<int:item_id>')
+@login_required
 def item_detail(item_id):
     item = Item.query.get_or_404(item_id)
     reviews = Review.query.filter_by(item_id=item_id).all()
@@ -222,7 +230,8 @@ def login():
         if user and check_password_hash(user.password_hash, request.form['password']):
             login_user(user)
             flash(f'Welcome back, {user.username}!', 'success')
-            return redirect(url_for('index'))
+            next_page = request.args.get('next')
+            return redirect(next_page or url_for('index'))
         else:
             flash('Invalid email or password', 'danger')
     
