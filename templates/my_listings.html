@@ -1,0 +1,26 @@
+{% extends "base.html" %} {% block title %}My Listings{% endblock %} {% block
+content %}
+<h2>My Listings</h2>
+<div class="row">
+  {% for item in items %}
+  <div class="col-md-4 mb-4">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">{{ item.title }}</h5>
+        <p class="card-text">${{ "%.2f"|format(item.price_per_day) }}/day</p>
+        <span
+          class="badge {% if item.is_available %}bg-success{% else %}bg-danger{% endif %}"
+        >
+          {{ 'Available' if item.is_available else 'Rented' }}
+        </span>
+        <a
+          href="{{ url_for('item_detail', item_id=item.id) }}"
+          class="btn btn-sm btn-info mt-2"
+          >View</a
+        >
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
