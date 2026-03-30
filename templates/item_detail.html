@@ -1,0 +1,105 @@
+{% extends "base.html" %} {% block title %}{{ item.title }}{% endblock %} {%
+block content %}
+<div class="row">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-body">
+        <h2>{{ item.title }}</h2>
+        <p class="text-muted">
+          Posted by {{ item.owner.username }} on {{ item.created_at.strftime('%B
+          %d, %Y') }}
+        </p>
+        <div class="row mb-4">
+          <div class="col-md-6">
+            <strong>Price per day:</strong> ${{
+            "%.2f"|format(item.price_per_day) }}<br />
+            <strong>Security Deposit:</strong> ${{
+            "%.2f"|format(item.security_deposit) }}<br />
+            <strong>Category:</strong> {{ item.category }}<br />
+            <strong>Condition:</strong> {{ item.condition }}
+          </div>
+          <div class="col-md-6">
+            <strong>Location:</strong> {{ item.location }}<br />
+            <strong>Owner Rating:</strong>
+            {% if item.owner.rating > 0 %}
+            <span class="rating-stars">
+              {% for i in range(item.owner.rating|int) %}★{% endfor %} {% for i
+              in range(5 - item.owner.rating|int) %}☆{% endfor %}
+            </span>
+            ({{ "%.1f"|format(item.owner.rating) }}/5) {% else %}
+            <span class="text-muted">No reviews yet</span>
+            {% endif %}
+          </div>
+        </div>
+        <h5>Description</h5>
+        <p>{{ item.description }}</p>
+        <div class="mt-3">
+          {% if current_user.is_authenticated and current_user.id !=
+          item.owner_id and item.is_available %}
+          <form
+            method="POST"
+            action="{{ url_for('rent_item', item_id=item.id) }}"
+            style="display: inline"
+          >
+            <button type="submit" class="btn btn-success btn-lg">
+              Rent This Item
+            </button>
+          </form>
+          {% endif %}
+          <button
+            class="btn btn-outline-secondary"
+            onclick="alert('Share meetup details with a friend for safety!')"
+          >
+            <i class="fas fa-share-alt"></i> Share Meetup Details
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="card mt-4">
+      <div class="card-header"><h5>Reviews ({{ reviews|length }})</h5></div>
+      <div class="card-body">
+        {% for review in reviews %}
+        <div class="mb-3">
+          <div class="d-flex justify-content-between">
+            <strong>{{ review.user.username }}</strong>
+            <div class="rating-stars">
+              {% for i in range(review.rating) %}★{% endfor %} {% for i in
+              range(5 - review.rating) %}☆{% endfor %}
+            </div>
+          </div>
+          <p>{{ review.comment }}</p>
+          <small class="text-muted"
+            >{{ review.created_at.strftime('%B %d, %Y') }}</small
+          >
+        </div>
+        {% if not loop.last %}
+        <hr />
+        {% endif %} {% endfor %} {% if current_user.is_authenticated and
+        current_user.id != item.owner_id %}
+        <a
+          href="{{ url_for('leave_review', item_id=item.id) }}"
+          class="btn btn-outline-primary mt-3"
+          >Leave a Review</a
+        >
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header"><h5>Item Protection Policy</h5></div>
+      <div class="card-body">
+        <p>
+          <i class="fas fa-shield-alt text-success"></i> All rentals include our
+          protection policy:
+        </p>
+        <ul>
+          <li>Security deposit held for rental duration</li>
+          <li>Condition documented before/after rental</li>
+          <li>Dispute resolution support available</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
