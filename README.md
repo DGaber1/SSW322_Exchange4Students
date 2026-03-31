@@ -1,4 +1,4 @@
-# SSW322_Exchange4Students
+# CampusShare
 
 A student borrowing marketplace where campus students can list items to lend and request to borrow from each other.
 
