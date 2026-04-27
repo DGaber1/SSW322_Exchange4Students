@@ -24,3 +24,47 @@ content %}
   {% endfor %}
 </div>
 {% endblock %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2>My Listings</h2>
+  <a href="{{ url_for('rental_requests') }}" class="btn btn-warning position-relative">
+    <i class="fas fa-bell"></i> Rental Requests
+    {% if pending_count > 0 %}
+    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+      {{ pending_count }}
+      <span class="visually-hidden">pending requests</span>
+    </span>
+    {% endif %}
+  </a>
+</div>
+<div class="row">
+  {% for item in items %}
+  <div class="col-md-4 mb-4">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">{{ item.title }}</h5>
+        <p class="card-text">${{ "%.2f"|format(item.price_per_day) }}/day</p>
+        <span
+          class="badge {% if item.is_available %}bg-success{% else %}bg-danger{% endif %}"
+        >
+          {{ 'Available' if item.is_available else 'Rented' }}
+        </span>
+        {% set item_pending = item.rentals | selectattr('status', 'equalto', 'pending') | list | length %}
+        {% if item_pending > 0 %}
+        <span class="badge bg-warning text-dark ms-1">
+          {{ item_pending }} pending request{{ 's' if item_pending > 1 else '' }}
+        </span>
+        {% endif %}
+        <div class="mt-2">
+          <a href="{{ url_for('item_detail', item_id=item.id) }}" class="btn btn-sm btn-info">View</a>
+          {% if item_pending > 0 %}
+          <a href="{{ url_for('rental_requests') }}?item={{ item.id }}" class="btn btn-sm btn-warning">
+            Manage Requests
+          </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>

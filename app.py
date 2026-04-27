@@ -4,17 +4,17 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import os
-
+ 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-change-this-in-production'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///campus_share.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
+ 
 db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
-
+ 
 # Database Models
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -24,7 +24,7 @@ class User(UserMixin, db.Model):
     is_verified = db.Column(db.Boolean, default=False)
     rating = db.Column(db.Float, default=0.0)
     join_date = db.Column(db.DateTime, default=datetime.utcnow)
-
+ 
 class Item(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
@@ -38,19 +38,24 @@ class Item(db.Model):
     is_available = db.Column(db.Boolean, default=True)
     owner_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     owner = db.relationship('User', backref='items', foreign_keys=[owner_id])
-
+ 
 class RentalTransaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     start_date = db.Column(db.DateTime, nullable=False)
-    end_date = db.Column(db.DateTime, nullable=False)
+    end_date = db.Column(db.DateTime, nullable=True)   # set on approval
     return_date = db.Column(db.DateTime)
     deposit_paid = db.Column(db.Float, nullable=False)
-    status = db.Column(db.String(20), default='active')
+    status = db.Column(db.String(20), default='pending')  # pending -> active -> returned / rejected
     item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
     borrower_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     item = db.relationship('Item', backref='rentals')
     borrower = db.relationship('User', backref='rentals', foreign_keys=[borrower_id])
-
+ 
+    # Alias so templates can use rental.renter
+    @property
+    def renter(self):
+        return self.borrower
+ 
 class Review(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     rating = db.Column(db.Integer, nullable=False)
@@ -60,17 +65,30 @@ class Review(db.Model):
     item_id = db.Column(db.Integer, db.ForeignKey('item.id'), nullable=False)
     user = db.relationship('User', backref='reviews', foreign_keys=[user_id])
     item = db.relationship('Item', backref='reviews')
-
+ 
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
-
+ 
+@app.context_processor
+def inject_pending_request_count():
+    """Make pending_request_count available in all templates for navbar badge."""
+    if current_user.is_authenticated:
+        count = (
+            RentalTransaction.query
+            .join(Item)
+            .filter(Item.owner_id == current_user.id, RentalTransaction.status == 'pending')
+            .count()
+        )
+        return dict(pending_request_count=count)
+    return dict(pending_request_count=0)
+ 
 # Routes
 @app.route('/')
 def index():
     recent_items = Item.query.filter_by(is_available=True).order_by(Item.created_at.desc()).limit(6).all()
     return render_template('index.html', recent_items=recent_items)
-
+ 
 @app.route('/browse')
 def browse():
     category = request.args.get('category', '')
@@ -98,9 +116,9 @@ def browse():
         ('sports', 'Sports'),
         ('other', 'Other'),
     ]
-
+ 
     return render_template('browse.html', items=items, categories=categories)
-
+ 
 @app.route('/item/<int:item_id>')
 @login_required
 def item_detail(item_id):
@@ -112,7 +130,7 @@ def item_detail(item_id):
     avg_rating = db.session.query(func.avg(Review.rating)).filter_by(item_id=item_id).scalar() or 0
     
     return render_template('item_detail.html', item=item, reviews=reviews, avg_rating=avg_rating)
-
+ 
 @app.route('/post', methods=['GET', 'POST'])
 @login_required
 def post_item():
@@ -133,47 +151,131 @@ def post_item():
         return redirect(url_for('my_listings'))
     
     return render_template('post_item.html')
-
+ 
 @app.route('/my-listings')
 @login_required
 def my_listings():
     items = Item.query.filter_by(owner_id=current_user.id).all()
-    return render_template('my_listings.html', items=items)
-
-@app.route('/rent/<int:item_id>', methods=['POST'])
+    # Count all pending requests across owner's items
+    pending_count = RentalTransaction.query.join(Item).filter(
+        Item.owner_id == current_user.id,
+        RentalTransaction.status == 'pending'
+    ).count()
+    return render_template('my_listings.html', items=items, pending_count=pending_count)
+ 
+@app.route('/request-rental/<int:item_id>', methods=['POST'])
 @login_required
-def rent_item(item_id):
+def request_rental(item_id):
     item = Item.query.get_or_404(item_id)
-    
+ 
     if item.owner_id == current_user.id:
         flash('You cannot rent your own item!', 'danger')
         return redirect(url_for('item_detail', item_id=item_id))
-    
+ 
     if not item.is_available:
-        flash('This item is no longer available!', 'danger')
+        flash('This item is not available right now.', 'danger')
         return redirect(url_for('item_detail', item_id=item_id))
-    
+ 
+    # Prevent duplicate pending requests from the same user
+    existing = RentalTransaction.query.filter_by(
+        item_id=item_id,
+        borrower_id=current_user.id,
+        status='pending'
+    ).first()
+    if existing:
+        flash('You already have a pending request for this item.', 'warning')
+        return redirect(url_for('item_detail', item_id=item_id))
+ 
     rental = RentalTransaction(
         item_id=item_id,
         borrower_id=current_user.id,
         start_date=datetime.now(),
-        end_date=datetime.now() + timedelta(days=7),
-        deposit_paid=item.security_deposit
+        end_date=None,                     # set when owner approves
+        deposit_paid=item.security_deposit,
+        status='pending'
     )
-    
-    item.is_available = False
     db.session.add(rental)
     db.session.commit()
-    
-    flash('Item rented successfully! Please coordinate with the owner for pickup.', 'success')
+ 
+    flash('Rental request sent! You\'ll be notified once the owner responds.', 'success')
     return redirect(url_for('my_rentals'))
-
+ 
+ 
+@app.route('/rental-requests')
+@login_required
+def rental_requests():
+    """Owner's inbox — all requests for their items."""
+    requests = (
+        RentalTransaction.query
+        .join(Item)
+        .filter(Item.owner_id == current_user.id)
+        .order_by(
+            # pending first, then most recent
+            db.case({"pending": 0}, value=RentalTransaction.status, else_=1),
+            RentalTransaction.start_date.desc()
+        )
+        .all()
+    )
+    pending_count = sum(1 for r in requests if r.status == 'pending')
+    return render_template('rental_requests.html', requests=requests, pending_count=pending_count)
+ 
+ 
+@app.route('/respond-to-request/<int:rental_id>', methods=['POST'])
+@login_required
+def respond_to_request(rental_id):
+    """Accept or reject a pending rental request."""
+    rental = RentalTransaction.query.get_or_404(rental_id)
+    item = rental.item
+ 
+    # Only the item owner may respond
+    if item.owner_id != current_user.id:
+        flash('Unauthorized action.', 'danger')
+        return redirect(url_for('rental_requests'))
+ 
+    if rental.status != 'pending':
+        flash('This request has already been handled.', 'warning')
+        return redirect(url_for('rental_requests'))
+ 
+    action = request.form.get('action')
+ 
+    if action == 'accept':
+        if not item.is_available:
+            flash('Cannot accept — item is no longer available.', 'danger')
+            return redirect(url_for('rental_requests'))
+ 
+        rental.status = 'active'
+        rental.start_date = datetime.now()
+        rental.end_date = datetime.now() + timedelta(days=7)
+        item.is_available = False
+ 
+        # Auto-reject any other pending requests for the same item
+        other_pending = RentalTransaction.query.filter(
+            RentalTransaction.item_id == item.id,
+            RentalTransaction.status == 'pending',
+            RentalTransaction.id != rental.id
+        ).all()
+        for other in other_pending:
+            other.status = 'rejected'
+ 
+        db.session.commit()
+        flash(f'Request from {rental.borrower.username} accepted! Item is now marked as rented.', 'success')
+ 
+    elif action == 'reject':
+        rental.status = 'rejected'
+        db.session.commit()
+        flash(f'Request from {rental.borrower.username} rejected. Deposit will be refunded.', 'info')
+ 
+    else:
+        flash('Invalid action.', 'danger')
+ 
+    return redirect(url_for('rental_requests'))
+ 
 @app.route('/my-rentals')
 @login_required
 def my_rentals():
     rentals = RentalTransaction.query.filter_by(borrower_id=current_user.id).all()
     return render_template('my_rentals.html', rentals=rentals)
-
+ 
 @app.route('/return-item/<int:rental_id>', methods=['POST'])
 @login_required
 def return_item(rental_id):
@@ -192,7 +294,7 @@ def return_item(rental_id):
     db.session.commit()
     flash('Item marked as returned. Security deposit will be processed within 24 hours.', 'success')
     return redirect(url_for('my_rentals'))
-
+ 
 @app.route('/review/<int:item_id>', methods=['GET', 'POST'])
 @login_required
 def leave_review(item_id):
@@ -219,7 +321,7 @@ def leave_review(item_id):
     
     item = Item.query.get_or_404(item_id)
     return render_template('leave_review.html', item=item)
-
+ 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -236,7 +338,7 @@ def login():
             flash('Invalid email or password', 'danger')
     
     return render_template('login.html')
-
+ 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated:
@@ -265,19 +367,19 @@ def register():
         return redirect(url_for('login'))
     
     return render_template('register.html')
-
+ 
 @app.route('/logout')
 @login_required
 def logout():
     logout_user()
     flash('You have been logged out.', 'info')
     return redirect(url_for('index'))
-
+ 
 @app.route('/profile')
 @login_required
 def profile():
     return render_template('profile.html', user=current_user)
-
+ 
 # Create tables and sample data
 with app.app_context():
     db.create_all()
@@ -311,6 +413,6 @@ with app.app_context():
         db.session.add_all([item1, item2, item3])
         db.session.commit()
         print("Sample data created!")
-
+ 
 if __name__ == '__main__':
     app.run(debug=True)

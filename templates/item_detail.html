@@ -38,13 +38,17 @@ block content %}
           item.owner_id and item.is_available %}
           <form
             method="POST"
-            action="{{ url_for('rent_item', item_id=item.id) }}"
+            action="{{ url_for('request_rental', item_id=item.id) }}"
             style="display: inline"
           >
             <button type="submit" class="btn btn-success btn-lg">
-              Rent This Item
+              <i class="fas fa-paper-plane"></i> Request to Rent
             </button>
           </form>
+          {% elif current_user.is_authenticated and current_user.id != item.owner_id and not item.is_available %}
+          <button class="btn btn-secondary btn-lg" disabled>
+            <i class="fas fa-clock"></i> Currently Unavailable
+          </button>
           {% endif %}
           <button
             class="btn btn-outline-secondary"

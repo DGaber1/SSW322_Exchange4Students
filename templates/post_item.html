@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Post an Item — CampusShare{% endblock %}
+ 
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-7">
+ 
+    <div class="mb-4">
+      <h2 class="mb-1">Post an Item</h2>
+      <p class="text-muted" style="font-size:0.92rem;">Fill in the details and fellow students can request to borrow it.</p>
+    </div>
+ 
+    <div class="card">
+      <div class="card-body" style="padding: 2rem;">
+        <form method="POST" action="{{ url_for('post_item') }}">
+ 
+          <div class="mb-4">
+            <label for="title" class="form-label">Item Title</label>
+            <input type="text" class="form-control" id="title" name="title"
+                   placeholder="e.g. MacBook Pro 14-inch, Canon DSLR Kit…" required>
+          </div>
+ 
+          <div class="mb-4">
+            <label for="description" class="form-label">Description</label>
+            <textarea class="form-control" id="description" name="description" rows="4"
+                      placeholder="Describe the item — condition, what's included, any restrictions…" required></textarea>
+          </div>
+ 
+          <div class="row mb-4">
+            <div class="col-md-6">
+              <label for="category" class="form-label">Category</label>
+              <select class="form-select" id="category" name="category" required>
+                <option value="" disabled selected>Select a category</option>
+                <option value="electronics">Electronics</option>
+                <option value="books">Books</option>
+                <option value="furniture">Furniture</option>
+                <option value="clothing">Clothing</option>
+                <option value="sports">Sports</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label for="condition" class="form-label">Condition</label>
+              <select class="form-select" id="condition" name="condition" required>
+                <option value="" disabled selected>Select condition</option>
+                <option value="like_new">Like New</option>
+                <option value="good">Good</option>
+                <option value="fair">Fair</option>
+                <option value="worn">Worn</option>
+              </select>
+            </div>
+          </div>
+ 
+          <div class="row mb-4">
+            <div class="col-md-6">
+              <label for="price_per_day" class="form-label">Price per Day ($)</label>
+              <div class="input-group">
+                <span class="input-group-text" style="background:var(--surface-2);border-color:var(--border);color:var(--text-muted);">$</span>
+                <input type="number" class="form-control" id="price_per_day" name="price_per_day"
+                       min="0" step="0.50" placeholder="0.00" required>
+              </div>
+              <small class="text-muted">Set 0 to lend for free</small>
+            </div>
+            <div class="col-md-6">
+              <label for="security_deposit" class="form-label">Security Deposit ($)</label>
+              <div class="input-group">
+                <span class="input-group-text" style="background:var(--surface-2);border-color:var(--border);color:var(--text-muted);">$</span>
+                <input type="number" class="form-control" id="security_deposit" name="security_deposit"
+                       min="0" step="1" placeholder="0.00" required>
+              </div>
+              <small class="text-muted">Returned when item is back safely</small>
+            </div>
+          </div>
+ 
+          <div class="mb-4">
+            <label for="location" class="form-label">Pickup Location</label>
+            <input type="text" class="form-control" id="location" name="location"
+                   placeholder="e.g. Library Quad, North Dorm Lobby…" required>
+          </div>
+ 
+          <div class="d-flex gap-3 align-items-center mt-2">
+            <button type="submit" class="btn btn-success btn-lg px-5">
+              <i class="fas fa-plus-circle me-2"></i>Post Item
+            </button>
+            <a href="{{ url_for('browse') }}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+ 
+        </form>
+      </div>
+    </div>
+ 
+    <div class="card mt-4" style="background:var(--teal-faint);border-color:rgba(42,157,143,0.25);">
+      <div class="card-body d-flex gap-3 align-items-start" style="padding:1.1rem 1.4rem;">
+        <i class="fas fa-lightbulb" style="color:var(--teal);margin-top:3px;font-size:1.1rem;"></i>
+        <div>
+          <strong style="color:var(--navy);font-size:0.88rem;">Tips for a great listing</strong>
+          <ul style="margin:0.4rem 0 0;padding-left:1.1rem;font-size:0.84rem;color:var(--text-secondary);">
+            <li>Be specific about what's included (cables, cases, manuals)</li>
+            <li>Set a fair deposit — it protects you and builds trust</li>
+            <li>Pick a visible, easy-to-find pickup spot on campus</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+ 
+  </div>
+</div>
+{% endblock %}

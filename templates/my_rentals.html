@@ -1,31 +1,46 @@
-{% extends "base.html" %} {% block title %}My Rentals{% endblock %} {% block
+{% extends "base.html" %} {% block title %}My Borrows{% endblock %} {% block
 content %}
-<h2>My Rentals</h2>
+<h2>My Borrows</h2>
 <div class="row">
   {% for rental in rentals %}
   <div class="col-md-6 mb-4">
-    <div class="card">
+    <div class="card {% if rental.status == 'pending' %}border-warning{% elif rental.status == 'active' %}border-success{% elif rental.status == 'rejected' %}border-danger{% endif %}">
       <div class="card-body">
         <h5 class="card-title">{{ rental.item.title }}</h5>
+        {% if rental.status == 'pending' %}
+        <div class="alert alert-warning py-2 mb-2">
+          <i class="fas fa-hourglass-half"></i> Awaiting owner approval
+        </div>
+        {% elif rental.start_date and rental.end_date %}
         <p class="card-text">
-          Rented from {{ rental.start_date.strftime('%Y-%m-%d') }} to {{
-          rental.end_date.strftime('%Y-%m-%d') }}
+          {{ rental.start_date.strftime('%Y-%m-%d') }} to {{ rental.end_date.strftime('%Y-%m-%d') }}
         </p>
-        <p>Deposit paid: ${{ "%.2f"|format(rental.deposit_paid) }}</p>
-        <span class="badge bg-info">{{ rental.status }}</span>
+        {% endif %}
+        <p>Deposit: ${{ "%.2f"|format(rental.deposit_paid) }}</p>
+        <span class="badge
+          {% if rental.status == 'pending' %}bg-warning text-dark
+          {% elif rental.status == 'active' %}bg-success
+          {% elif rental.status == 'rejected' %}bg-danger
+          {% elif rental.status == 'returned' %}bg-secondary
+          {% else %}bg-info{% endif %}">
+          {{ rental.status | capitalize }}
+        </span>
         {% if rental.status == 'active' %}
-        <form
-          method="POST"
-          action="{{ url_for('return_item', rental_id=rental.id) }}"
-          class="mt-2"
-        >
+        <form method="POST" action="{{ url_for('return_item', rental_id=rental.id) }}" class="mt-2">
           <button type="submit" class="btn btn-success btn-sm">
-            Mark as Returned
+            <i class="fas fa-undo"></i> Mark as Returned
           </button>
         </form>
         {% endif %}
+        {% if rental.status == 'rejected' %}
+        <p class="text-muted mt-2 mb-0"><small>Your deposit will be refunded.</small></p>
+        {% endif %}
       </div>
     </div>
+  </div>
+  {% else %}
+  <div class="col-12">
+    <div class="alert alert-info">You haven't requested any rentals yet. <a href="{{ url_for('browse') }}">Browse items</a> to get started.</div>
   </div>
   {% endfor %}
 </div>
