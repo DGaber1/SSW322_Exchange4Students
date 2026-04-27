@@ -33,6 +33,7 @@ block content %}
         </div>
         <h5>Description</h5>
         <p>{{ item.description }}</p>
+
         <div class="mt-3">
           {% if current_user.is_authenticated and current_user.id !=
           item.owner_id and item.is_available %}
@@ -45,7 +46,8 @@ block content %}
               <i class="fas fa-paper-plane"></i> Request to Rent
             </button>
           </form>
-          {% elif current_user.is_authenticated and current_user.id != item.owner_id and not item.is_available %}
+          {% elif current_user.is_authenticated and current_user.id !=
+          item.owner_id and not item.is_available %}
           <button class="btn btn-secondary btn-lg" disabled>
             <i class="fas fa-clock"></i> Currently Unavailable
           </button>
@@ -57,6 +59,34 @@ block content %}
             <i class="fas fa-share-alt"></i> Share Meetup Details
           </button>
         </div>
+
+        {% if current_user.is_authenticated and current_user.id != item.owner_id
+        %}
+        <hr />
+        <div class="mt-4">
+          <h5><i class="fas fa-comments"></i> Contact Owner</h5>
+          <p class="text-muted small">
+            Ask about pickup times, item condition, or meetup locations.
+          </p>
+          <form
+            action="{{ url_for('send_message', receiver_id=item.owner_id) }}"
+            method="POST"
+          >
+            <div class="mb-3">
+              <textarea
+                name="content"
+                class="form-control"
+                rows="3"
+                placeholder="Hi {{ item.owner.username }}, I'm interested in the {{ item.title }}..."
+                required
+              ></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-paper-plane"></i> Send Message
+            </button>
+          </form>
+        </div>
+        {% endif %}
       </div>
     </div>
     <div class="card mt-4">

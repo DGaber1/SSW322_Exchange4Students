@@ -82,6 +82,18 @@ def inject_pending_request_count():
         )
         return dict(pending_request_count=count)
     return dict(pending_request_count=0)
+
+class Message(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    receiver_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    read = db.Column(db.Boolean, default=False)
+
+    # Relationships to easily get sender/receiver names
+    sender = db.relationship('User', foreign_keys=[sender_id], backref='sent_messages')
+    receiver = db.relationship('User', foreign_keys=[receiver_id], backref='received_messages')
  
 # Routes
 @app.route('/')
@@ -413,6 +425,30 @@ with app.app_context():
         db.session.add_all([item1, item2, item3])
         db.session.commit()
         print("Sample data created!")
+
+@app.route('/messages')
+@login_required
+def messages():
+    # Get all messages where the current user is either the sender or receiver
+    user_messages = Message.query.filter(
+        (Message.sender_id == current_user.id) | (Message.receiver_id == current_user.id)
+    ).order_by(Message.timestamp.desc()).all()
+    return render_template('messages.html', messages=user_messages)
+
+@app.route('/send_message/<int:receiver_id>', methods=['POST'])
+@login_required
+def send_message(receiver_id):
+    content = request.form.get('content')
+    if content:
+        new_msg = Message(
+            sender_id=current_user.id,
+            receiver_id=receiver_id,
+            content=content
+        )
+        db.session.add(new_msg)
+        db.session.commit()
+        flash('Message sent!', 'success')
+    return redirect(request.referrer)
  
 if __name__ == '__main__':
     app.run(debug=True)
