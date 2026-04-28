@@ -1,70 +1,130 @@
-{% extends "base.html" %} {% block title %}My Listings{% endblock %} {% block
-content %}
-<h2>My Listings</h2>
-<div class="row">
-  {% for item in items %}
-  <div class="col-md-4 mb-4">
-    <div class="card">
-      <div class="card-body">
-        <h5 class="card-title">{{ item.title }}</h5>
-        <p class="card-text">${{ "%.2f"|format(item.price_per_day) }}/day</p>
-        <span
-          class="badge {% if item.is_available %}bg-success{% else %}bg-danger{% endif %}"
-        >
-          {{ 'Available' if item.is_available else 'Rented' }}
-        </span>
-        <a
-          href="{{ url_for('item_detail', item_id=item.id) }}"
-          class="btn btn-sm btn-info mt-2"
-          >View</a
-        >
-      </div>
-    </div>
-  </div>
-  {% endfor %}
-</div>
-{% endblock %}
+{% extends "base.html" %}
+{% block title %}My Listings{% endblock %}
 
+{% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h2>My Listings</h2>
-  <a href="{{ url_for('rental_requests') }}" class="btn btn-warning position-relative">
-    <i class="fas fa-bell"></i> Rental Requests
-    {% if pending_count > 0 %}
-    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-      {{ pending_count }}
-      <span class="visually-hidden">pending requests</span>
-    </span>
-    {% endif %}
+  <a href="{{ url_for('post_item') }}" class="btn btn-success">
+    <i class="fas fa-plus-circle me-1"></i> Post New Item
   </a>
 </div>
+
 <div class="row">
-  {% for item in items %}
-  <div class="col-md-4 mb-4">
-    <div class="card">
-      <div class="card-body">
-        <h5 class="card-title">{{ item.title }}</h5>
-        <p class="card-text">${{ "%.2f"|format(item.price_per_day) }}/day</p>
-        <span
-          class="badge {% if item.is_available %}bg-success{% else %}bg-danger{% endif %}"
-        >
-          {{ 'Available' if item.is_available else 'Rented' }}
-        </span>
-        {% set item_pending = item.rentals | selectattr('status', 'equalto', 'pending') | list | length %}
-        {% if item_pending > 0 %}
-        <span class="badge bg-warning text-dark ms-1">
-          {{ item_pending }} pending request{{ 's' if item_pending > 1 else '' }}
-        </span>
-        {% endif %}
-        <div class="mt-2">
-          <a href="{{ url_for('item_detail', item_id=item.id) }}" class="btn btn-sm btn-info">View</a>
+
+  <!-- LEFT: Current Listings -->
+  <div class="col-md-6">
+    <h5 class="mb-3" style="font-family:'DM Sans',sans-serif;font-weight:700;text-transform:uppercase;font-size:0.78rem;letter-spacing:0.08em;color:var(--text-muted);">
+      <i class="fas fa-box me-1"></i> Your Items
+    </h5>
+
+    {% for item in items %}
+    <div class="card mb-3">
+      <div class="card-body" style="padding:1.1rem 1.3rem;">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <h6 class="card-title mb-1">{{ item.title }}</h6>
+            <p class="text-muted mb-2" style="font-size:0.85rem;">${{ "%.2f"|format(item.price_per_day) }}/day · {{ item.category }}</p>
+          </div>
+          <span class="badge {% if item.is_available %}bg-success{% else %}bg-danger{% endif %}">
+            {{ 'Available' if item.is_available else 'Rented' }}
+          </span>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+          <a href="{{ url_for('item_detail', item_id=item.id) }}" class="btn btn-sm btn-outline-primary">View</a>
+          {% set item_pending = item.rentals | selectattr('status', 'equalto', 'pending') | list | length %}
           {% if item_pending > 0 %}
-          <a href="{{ url_for('rental_requests') }}?item={{ item.id }}" class="btn btn-sm btn-warning">
-            Manage Requests
-          </a>
+          <span class="badge bg-warning text-dark">
+            <i class="fas fa-clock me-1"></i>{{ item_pending }} pending request{{ 's' if item_pending > 1 else '' }}
+          </span>
           {% endif %}
         </div>
       </div>
     </div>
+    {% else %}
+    <div class="card" style="border:2px dashed var(--border);box-shadow:none;background:transparent;">
+      <div class="card-body text-center py-4">
+        <i class="fas fa-box-open fa-2x mb-2" style="color:var(--border-strong);"></i>
+        <p class="text-muted mb-2" style="font-size:0.9rem;">You haven't listed anything yet.</p>
+        <a href="{{ url_for('post_item') }}" class="btn btn-sm btn-success">Post your first item</a>
+      </div>
+    </div>
+    {% endfor %}
   </div>
-  {% endfor %}
+
+  <!-- RIGHT: Pending Requests -->
+  <div class="col-md-6">
+    <h5 class="mb-3" style="font-family:'DM Sans',sans-serif;font-weight:700;text-transform:uppercase;font-size:0.78rem;letter-spacing:0.08em;color:var(--text-muted);">
+      <i class="fas fa-inbox me-1"></i> Awaiting Approval
+      {% if pending_count > 0 %}
+      <span class="badge bg-danger ms-1">{{ pending_count }}</span>
+      {% endif %}
+    </h5>
+
+    {% set has_pending = namespace(value=false) %}
+    {% for item in items %}
+      {% for rental in item.rentals %}
+        {% if rental.status == 'pending' %}
+          {% set has_pending.value = true %}
+          <div class="card mb-3 border-warning" style="border-left:4px solid var(--warn) !important;">
+            <div class="card-body" style="padding:1.1rem 1.3rem;">
+
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                  <h6 class="mb-0" style="font-size:0.95rem;">{{ item.title }}</h6>
+                  <small class="text-muted">requested by
+                    <strong style="color:var(--navy);">{{ rental.borrower.username }}</strong>
+                    {% if rental.borrower.is_verified %}
+                    <i class="fas fa-check-circle text-success ms-1" title="Verified"></i>
+                    {% endif %}
+                  </small>
+                </div>
+                {% if rental.borrower.rating > 0 %}
+                <span class="text-warning" style="font-size:0.85rem;" title="{{ '%.1f'|format(rental.borrower.rating) }}/5">
+                  {% for i in range(rental.borrower.rating|int) %}★{% endfor %}{% for i in range(5 - rental.borrower.rating|int) %}☆{% endfor %}
+                </span>
+                {% else %}
+                <small class="text-muted">No rating</small>
+                {% endif %}
+              </div>
+
+              <p class="text-muted mb-3" style="font-size:0.82rem;">
+                <i class="fas fa-dollar-sign me-1"></i>Deposit: ${{ "%.2f"|format(rental.deposit_paid) }}
+                &nbsp;·&nbsp;
+                <i class="fas fa-calendar me-1"></i>Requested {{ rental.start_date.strftime('%b %d') }}
+              </p>
+
+              <div class="d-flex gap-2">
+                <form method="POST" action="{{ url_for('respond_to_request', rental_id=rental.id) }}" class="flex-fill">
+                  <input type="hidden" name="action" value="accept">
+                  <button type="submit" class="btn btn-success btn-sm w-100"
+                    onclick="return confirm('Accept request from {{ rental.borrower.username }}?')">
+                    <i class="fas fa-check me-1"></i>Accept
+                  </button>
+                </form>
+                <form method="POST" action="{{ url_for('respond_to_request', rental_id=rental.id) }}" class="flex-fill">
+                  <input type="hidden" name="action" value="reject">
+                  <button type="submit" class="btn btn-outline-danger btn-sm w-100"
+                    onclick="return confirm('Reject this request?')">
+                    <i class="fas fa-times me-1"></i>Reject
+                  </button>
+                </form>
+              </div>
+
+            </div>
+          </div>
+        {% endif %}
+      {% endfor %}
+    {% endfor %}
+
+    {% if not has_pending.value %}
+    <div class="card" style="border:2px dashed var(--border);box-shadow:none;background:transparent;">
+      <div class="card-body text-center py-4">
+        <i class="fas fa-check-circle fa-2x mb-2" style="color:var(--success);"></i>
+        <p class="text-muted mb-0" style="font-size:0.9rem;">No pending requests — you're all caught up!</p>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
 </div>
+{% endblock %}
